@@ -52,6 +52,8 @@ public class OpenIdConnectFilter extends AbstractAuthenticationProcessingFilter 
 	private String clientId = "<your-client-id>";
 
 	private String issuer = "https://login.microsoftonline.com/<your-tenant-id>/v2.0";
+	private String publicKeyEndpoint = "https://login.microsoftonline.com/<your-tenant-id>/discovery/keys?appid=<your-client-id>";
+
 
 
     public OpenIdConnectFilter(String defaultFilterProcessesUrl) {
@@ -98,7 +100,7 @@ public class OpenIdConnectFilter extends AbstractAuthenticationProcessingFilter 
 
 
 	private RsaVerifier verifier(String kid) throws JwkException, MalformedURLException {
-		JwkProvider provider = new UrlJwkProvider(new URL("https://login.microsoftonline.com/common/discovery/keys"));
+		JwkProvider provider = new UrlJwkProvider(new URL(publicKeyEndpoint));
 		Jwk jwk = provider.get(kid);
 		return new RsaVerifier((RSAPublicKey) jwk.getPublicKey());
 	}
