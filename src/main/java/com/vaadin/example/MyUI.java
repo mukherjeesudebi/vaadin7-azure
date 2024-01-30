@@ -38,7 +38,14 @@ public class MyUI extends UI {
             layout.addComponent(new Label("Thanks " + name.getValue() + ", it works!"));
         });
 
-        layout.addComponents(name, button);
+        Button logoutButton = new Button("Logout");
+        logoutButton.addClickListener(e -> {
+            UI ui = e.getButton().getUI();
+            ui.getSession().getSession().invalidate();
+            ui.getPage().setLocation("/logout");
+        });
+
+        layout.addComponents(name, button, logoutButton);
 
         setContent(layout);
     }
