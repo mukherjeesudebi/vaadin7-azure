@@ -18,6 +18,7 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
 import org.springframework.security.oauth2.client.filter.OAuth2ClientContextFilter;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
+import org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuccessHandler;
 import org.springframework.security.web.authentication.preauth.AbstractPreAuthenticatedProcessingFilter;
 import org.springframework.web.context.request.RequestContextListener;
 
@@ -34,9 +35,15 @@ import java.util.List;
 @ComponentScan(basePackages = "com.vaadin")
 @EnableGlobalMethodSecurity(prePostEnabled = true, securedEnabled = true, jsr250Enabled = true, proxyTargetClass = true)
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
-	
-	@Autowired
+
+    @Autowired
     private OAuth2RestTemplate restTemplate;
+    private SimpleUrlLogoutSuccessHandler logoutHandler = new SimpleUrlLogoutSuccessHandler();
+
+    public SecurityConfig() {
+        logoutHandler.setDefaultTargetUrl("https://login.microsoftonline.com/<your-tenant-id>/oauth2/v2.0/logout?client_id=<your-client-id>");
+    }
+
 
     @Bean
     public OpenIdConnectFilter openIdConnectFilter() {
@@ -65,21 +72,26 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .anyRequest().authenticated()
                 .and()
                 .logout().logoutUrl("/logout").invalidateHttpSession(true).permitAll();*/
-    	
-    	 http.csrf().disable()
-         .addFilterAfter(new OAuth2ClientContextFilter(), 
-           AbstractPreAuthenticatedProcessingFilter.class)
-         .addFilterAfter(openIdConnectFilter(), 
-           OAuth2ClientContextFilter.class)
-         .httpBasic()
-         .authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login"))
-         .and()
-         .authorizeRequests()
-         .antMatchers("/login").permitAll()
-         .antMatchers("/logout").permitAll()
-         .anyRequest().authenticated();
-    	
-    	
+
+        http.csrf().disable()
+                .addFilterAfter(new OAuth2ClientContextFilter(),
+                        AbstractPreAuthenticatedProcessingFilter.class)
+                .addFilterAfter(openIdConnectFilter(),
+                        OAuth2ClientContextFilter.class)
+                .httpBasic()
+                .authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login"))
+                .and()
+                .authorizeRequests()
+                .antMatchers("/login").permitAll()
+                .antMatchers("/logout").permitAll()
+                .anyRequest().authenticated()
+                .and().logout()
+                .logoutUrl("/logout")
+                .invalidateHttpSession(true)
+                .logoutSuccessHandler(logoutHandler)
+                .permitAll();
+
+
     }
 
     @Override
@@ -87,7 +99,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         web.ignoring()
                 .antMatchers("/resources/**", "/VAADIN/**");
     }
-    
+
     @Bean
     public RequestContextListener requestContextListener() {
         return new RequestContextListener();
