@@ -1,7 +1,7 @@
-vaadin-spring-azure
+vaadin7 Azure AD Sample Application 
 ==============
 
-Template for a simple Vaadin application that only requires a Servlet 3.0 container to run.
+A simple Vaadin 7 application that integrates with Azure AD to add azure login and logout. 
 
 
 Workflow
@@ -11,42 +11,32 @@ To compile the entire project, run "mvn install".
 
 To run the application, run "mvn jetty:run" and open http://localhost:8080/ .
 
-To produce a deployable production mode WAR:
-- change productionMode to true in the servlet class configuration (nested in the UI class)
-- run "mvn clean package"
-- test the war file with "mvn jetty:run-war"
 
-Client-Side compilation
--------------------------
+Azure Authentication and references
+========
 
-The generated maven project is using an automatically generated widgetset by default. 
-When you add a dependency that needs client-side compilation, the maven plugin will 
-automatically generate it for you. Your own client-side customisations can be added into
-package "client".
+This is a Spring Vaadin 7 application using Spring security for restricting access to the application. 
 
-Debugging client side code
-  - run "mvn vaadin:run-codeserver" on a separate console while the application is running
-  - activate Super Dev Mode in the debug window of the application
+The below lines in Security config makes sure that all requests to the application are authenticated except \login and \logout
+```
+ antMatchers("/login").permitAll()
+.antMatchers("/logout").permitAll()
+.anyRequest().authenticated()
+```
 
-Developing a theme using the runtime compiler
--------------------------
+Following these documents https://www.baeldung.com/spring-security-openid-connect-legacy and https://jar-download.com/artifacts/org.springframework.security.oauth/spring-security-oauth2/2.0.10.RELEASE/source-code/org/springframework/security/oauth2/client/filter/OAuth2ClientAuthenticationProcessingFilter.java
+OpenIdConnectFilter has been designed and in SecurityConfig it has been added as a Filter which is responsible for the authentication. 
+Also a bean of type OAuth2RestTemplate has been created with the authorization details in AzureOpenIdConnectConfig which is responsible to get the access token. 
 
-When developing the theme, Vaadin can be configured to compile the SASS based
-theme at runtime in the server. This way you can just modify the scss files in
-your IDE and reload the browser to see changes.
+On getting the access token, the "id_token" is extracted from the access token which is a JWT token that contains identity information about the user, signed by the identity provider. In this case the identity provider is microsoft azure.
 
-To use the runtime compilation, open pom.xml and comment out the compile-theme 
-goal from vaadin-maven-plugin configuration. To remove a possibly existing 
-pre-compiled theme, run "mvn clean package" once.
+Next we need to verify the signature if the access token issued by Azure Ad by using public endpoint. 
+The "kid" is the key identifier which we can extract from the id_token and verify it with the public keys. 
+This has been done using the decodeAndVerify method of JwtHelper and finally verified that the id_token was issued by azure and is not expired. 
 
-When using the runtime compiler, running the application in the "run" mode 
-(rather than in "debug" mode) can speed up consecutive theme compilations
-significantly.
+The public key can be obtained by calling the public Azure AD OpenID configuration endpoint. It has been referenced from here https://learn.microsoft.com/en-us/answers/questions/1359059/signature-validation-of-my-access-token-private-ke and https://www.voitanos.io/blog/validating-entra-id-generated-oauth-tokens
 
-It is highly recommended to disable runtime compilation for production WAR files.
+On successful authentication user has been created with the claims and the granted authorities.
 
-Using Vaadin pre-releases
--------------------------
+For logout, a logoutSuccessHandler has been added which is responsible for redirecting to azure logout after logging out of the application. 
 
-If Vaadin pre-releases are not enabled by default, use the Maven parameter
-"-P vaadin-prerelease" or change the activation default value of the profile in pom.xml .
